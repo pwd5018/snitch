@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base launch theme, used only before Compose content is set; actual theming
+         (colors, typography) lives in ui/theme/Theme.kt via MaterialTheme. -->
+    <style name="Theme.Snitch" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

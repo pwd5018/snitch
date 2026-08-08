@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Snitch</string>
+    <string name="nav_audit">Audit</string>
+    <string name="nav_traffic">Traffic</string>
+</resources>

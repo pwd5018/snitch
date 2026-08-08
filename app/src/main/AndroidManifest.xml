@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- ===== Normal, install-time-granted permissions ===== -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <!-- VpnService's foreground notification uses foregroundServiceType="systemExempted" —
+         there is no "vpn" FGS type on API 34+. Double-check this against Android Studio's
+         manifest merger/lint before relying on it; sources on this were inconsistent. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
+
+    <!-- Runtime-requested (API 33+). Needed only so the ongoing "VPN active" foreground
+         notification is actually visible — startForeground() still succeeds without it,
+         the notification just silently won't show. Request via
+         ActivityResultContracts.RequestPermission() before starting the VPN service. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Protected/Play-restricted permission, irrelevant here since this app is sideload-only,
+         but still required: without it, PackageManager.getInstalledPackages()/getInstalledApplications()
+         silently filters results to package-visibility-exempt apps only (API 30+), which would
+         break the audit screen's "every installed app" listing. -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+
+    <!-- Special app access (AppOps-backed, not a runtime dialog). Declared now for round-1
+         manifest completeness; NetworkStatsManager usage itself is implemented in a later round.
+         User must grant via Settings.ACTION_USAGE_ACCESS_SETTINGS; check grant state via
+         AppOpsManager.checkOpNoThrow(OPSTR_GET_USAGE_STATS, uid, packageName), not
+         PackageManager.checkPermission (which does not reliably reflect this AppOps grant). -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- BIND_VPN_SERVICE is held by the system, never requested by this app — it's granted to
+         SnitchVpnService automatically once the user accepts the VpnService.prepare() consent
+         dialog. Declared below on the <service> element, not as a <uses-permission>. -->
+
+    <application
+        android:name=".SnitchApplication"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.Snitch">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Snitch">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- exported=true is required on API 31+ for a component that declares an intent-filter;
+             this is safe here because only the system (which holds BIND_VPN_SERVICE) can actually
+             bind to a VpnService. -->
+        <service
+            android:name=".vpn.SnitchVpnService"
+            android:exported="true"
+            android:foregroundServiceType="systemExempted"
+            android:permission="android.permission.BIND_VPN_SERVICE">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
+
+    </application>
+
+</manifest>
