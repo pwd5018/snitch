@@ -157,9 +157,34 @@ notification appears, `adb shell dumpsys connectivity` shows the test-subnet rou
 Once steps 0–4 are done once, every future change is just:
 
 ```powershell
+.\run.ps1
+```
+
+This builds, installs to whatever device `adb devices` sees, launches the app, and
+tails `SnitchVpnService` logs (Ctrl+C to stop watching — the app keeps running). It's
+just the three commands below wrapped with a couple of sanity checks (no device
+attached, build failed, etc.) — nothing it does that you couldn't type by hand:
+
+```powershell
 .\gradlew.bat assembleDebug
 adb install -r app\build\outputs\apk\debug\app-debug.apk
+adb shell am start -n com.pwd5018.snitch/.MainActivity
 adb logcat -s SnitchVpnService
+```
+
+Pass `-NoLogcat` to `run.ps1` to build/install/launch without tailing logs.
+
+If Windows refuses to run the script ("running scripts is disabled on this system"),
+either allow scripts for your user once:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+or run it one-off without changing that setting:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run.ps1
 ```
 
 No Android Studio, no emulator, either time.
