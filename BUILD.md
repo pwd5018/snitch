@@ -17,14 +17,15 @@ $env:ANDROID_HOME
 Test-Path "$env:LOCALAPPDATA\Android\Sdk"
 ```
 
-- If `java -version` prints `17.x`, skip step 1.
-- If `ANDROID_HOME` is set and/or the SDK path exists (e.g. you have Android Studio
-  installed even if you don't want to open it), you likely already have an SDK — skip
-  to step 3's `sdkmanager` calls, pointing `ANDROID_HOME` at that existing folder
-  instead of installing a fresh one in step 2. Android Studio's bundled SDK works fine
-  for command-line builds; you never have to open the IDE itself.
+- `java -version` just needs to be **17 or newer** (Gradle/AGP's requirement is a
+  minimum of 17 — a JDK 21 or later is fine as-is, nothing to install). Only install a
+  JDK in step 1 if this prints something older than 17.
+- If `Test-Path` prints `True`, you already have an Android SDK on disk (most likely
+  installed by Android Studio at some point, even if you never open the IDE itself) —
+  that's the common case. Step 2 below reuses that folder instead of creating a new
+  one. If it prints `False`, step 2 creates a fresh SDK at `C:\Android` instead.
 
-## 1. Install JDK 17 (skip if `java -version` already shows 17.x)
+## 1. Install a JDK (skip if `java -version` already shows 17 or newer)
 
 Download and install the Windows MSI for **Eclipse Temurin 17** from
 https://adoptium.net/temurin/releases/ (choose version 17, JDK, your architecture,
@@ -36,27 +37,55 @@ Verify in a new PowerShell window:
 java -version
 ```
 
-## 2. Install the Android command-line tools (skip if you already have an SDK)
+## 2. Install the Android command-line tools
+
+Android Studio installs the SDK's `platform-tools`/`platforms`/`build-tools`, but not
+always the separate `cmdline-tools` package that `sdkmanager` and `avdmanager` live in
+— that's usually the one missing piece even when `Test-Path` above was `True`.
+
+**Pick your SDK root** based on step 0's result:
+
+```powershell
+# If Test-Path above printed True, reuse the existing SDK:
+$sdkRoot = "$env:LOCALAPPDATA\Android\Sdk"
+
+# If it printed False, use a fresh location instead:
+# $sdkRoot = "C:\Android"
+```
+
+Then:
 
 1. Go to https://developer.android.com/studio#command-tools and download the
    **Windows "Command line tools only"** zip (not the full Android Studio installer).
-2. Extract it, then arrange the folder so `sdkmanager.bat` ends up at
-   `C:\Android\cmdline-tools\latest\bin\sdkmanager.bat` (the tools expect a `latest`
-   subfolder — the zip extracts into a folder named `cmdline-tools`, so create
-   `C:\Android\cmdline-tools\latest\` and move the zip's contents into it).
-3. Set environment variables (System Properties → Environment Variables, or PowerShell
-   as Administrator for a persistent change):
+2. Extract it and move the tools into place so `sdkmanager.bat` ends up at
+   `$sdkRoot\cmdline-tools\latest\bin\sdkmanager.bat` — the zip extracts to a folder
+   literally named `cmdline-tools`, and its *contents* need to land one level under a
+   folder named `latest`, which is where the trip-up usually happens. Assuming you
+   downloaded to your Downloads folder:
+
+   ```powershell
+   Expand-Archive -Path "$env:USERPROFILE\Downloads\commandlinetools-win-*_latest.zip" -DestinationPath "$env:TEMP\cmdline-tools-extract"
+   New-Item -ItemType Directory -Force -Path "$sdkRoot\cmdline-tools\latest" | Out-Null
+   Move-Item "$env:TEMP\cmdline-tools-extract\cmdline-tools\*" "$sdkRoot\cmdline-tools\latest\"
+   ```
+
+3. Set environment variables (persists for your user account):
+
+   ```powershell
+   [Environment]::SetEnvironmentVariable("ANDROID_HOME", $sdkRoot, "User")
+   [Environment]::SetEnvironmentVariable(
+       "Path",
+       $env:Path + ";$sdkRoot\platform-tools;$sdkRoot\cmdline-tools\latest\bin",
+       "User"
+   )
+   ```
+
+**Open a new PowerShell window** so the changes take effect, then verify both resolve:
 
 ```powershell
-[Environment]::SetEnvironmentVariable("ANDROID_HOME", "C:\Android", "User")
-[Environment]::SetEnvironmentVariable(
-    "Path",
-    $env:Path + ";C:\Android\cmdline-tools\latest\bin;C:\Android\platform-tools",
-    "User"
-)
+sdkmanager --version
+adb version
 ```
-
-Open a new PowerShell window afterward so the changes take effect.
 
 ## 3. Install SDK components and accept licenses
 
@@ -67,7 +96,10 @@ sdkmanager --list | Select-String "build-tools;36"
 sdkmanager "build-tools;36.0.0"   # use whatever version the line above actually shows
 ```
 
-This never opens a GUI license dialog — `--licenses` accepts them from the terminal.
+These are safe to run even if you already had an SDK — anything already installed
+(e.g. from Android Studio) is left alone, and this only adds what's missing (this
+project's `compileSdk = 36` specifically isn't guaranteed to already be there). This
+never opens a GUI license dialog — `--licenses` accepts them from the terminal.
 
 ## 4. Enable USB debugging on your phone
 
