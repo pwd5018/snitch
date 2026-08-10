@@ -1,5 +1,38 @@
 # Snitch Roadmap
 
+## Network dashboard (web) — new direction, in progress
+
+A parallel track to the single-device Android app below: a self-hosted **web**
+dashboard covering the whole home network, not just one phone, aimed at people
+with no networking/security background. Lives in `web/` — buildable and runnable
+entirely from a laptop, no phone or router required to get started.
+
+Rationale: the Android app's `VpnService` only ever sees one device's traffic.
+A network-wide view needs a different vantage point — sitting at the DNS layer
+for the whole LAN (a local DNS server, or reading an existing Pi-hole/router log)
+— which naturally gives both device inventory (every query has a source IP/MAC)
+and data-exposure classification (domain vs. tracker/ad lists) from the same
+pipeline, with no separate mobile deployment needed.
+
+Status:
+
+- **Done**: Scaffold — Express backend + Vite frontend, mock device/connection
+  data, plain-language category labels (ad tracker / analytics / needed to work /
+  unknown) with risk badges per device. Verified working locally in a browser.
+- **Remaining**:
+  - Real DNS query capture (local DNS server, or ingest an existing Pi-hole/router
+    query log) keyed by source IP/MAC.
+  - Domain classification against a maintained tracker/ad list, replacing the
+    hardcoded sample categories.
+  - Persistence — everything is in-memory today and resets on restart.
+  - Decide later whether/how this reuses v2's AI translation-layer classifier
+    (below) rather than a static list, once both exist.
+
+**Open question**: whether the Android app (v1–v3 below) stays in active
+development alongside this, becomes a companion "per-app, per-device deep audit"
+piece once the network dashboard's basics exist, or is paused for now — not yet
+decided, revisit before starting v1's remaining proxy work.
+
 ## v1 — Traffic flagging & Security/Privacy Audit (in progress)
 
 Single device (your own phone). Status:
