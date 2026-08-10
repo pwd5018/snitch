@@ -47,36 +47,46 @@ function renderDevice(device) {
     </div>`;
 }
 
-async function loadDevices() {
-  app.innerHTML = `
-    <header>
-      <h1>Snitch</h1>
-      <p>What's actually happening on your network, in plain language.</p>
-    </header>
-    <div class="loading">Loading devices…</div>`;
-
+async function refresh() {
   let devices;
   try {
     const res = await fetch("/api/devices");
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     devices = await res.json();
   } catch (err) {
-    app.innerHTML += `<div class="error">Couldn't load devices: ${err.message}. Is the backend running?</div>`;
+    app.innerHTML = `
+      <header>
+        <h1>Snitch</h1>
+        <p>What's actually happening on your network, in plain language.</p>
+      </header>
+      <div class="error">Couldn't load devices: ${err.message}. Is the backend running?</div>`;
     return;
   }
+
+  await Promise.all(
+    [...expanded].map(async (id) => {
+      const res = await fetch(`/api/devices/${id}`);
+      if (res.ok) detailCache.set(id, await res.json());
+    })
+  );
 
   render(devices);
 }
 
 function render(devices) {
+  const body =
+    devices.length === 0
+      ? `<div class="loading">No devices seen yet. Point a device's DNS settings at this
+         machine's IP (backend default port 53) and browse something — devices show up
+         here as soon as their DNS queries start arriving.</div>`
+      : `<div class="device-list">${devices.map(renderDevice).join("")}</div>`;
+
   app.innerHTML = `
     <header>
       <h1>Snitch</h1>
       <p>What's actually happening on your network, in plain language.</p>
     </header>
-    <div class="device-list">
-      ${devices.map(renderDevice).join("")}
-    </div>`;
+    ${body}`;
 
   app.querySelectorAll(".device-card").forEach((card) => {
     card.addEventListener("click", async () => {
@@ -98,4 +108,12 @@ function render(devices) {
   });
 }
 
-loadDevices();
+app.innerHTML = `
+  <header>
+    <h1>Snitch</h1>
+    <p>What's actually happening on your network, in plain language.</p>
+  </header>
+  <div class="loading">Loading devices…</div>`;
+
+refresh();
+setInterval(refresh, 5000);
