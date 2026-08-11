@@ -39,6 +39,46 @@ port 53) and browse something on that device. Every query it makes will show up
 under its IP on the dashboard within a few seconds. This captures only whatever
 device you've explicitly pointed at it — nothing network-wide happens automatically.
 
+## Running on a Synology NAS (recommended for actual home use)
+
+A laptop or desktop works for development, but shouldn't be your real DNS server —
+if it sleeps or reboots, it can take the network's DNS down with it (mitigated by
+setting a secondary/fallback DNS server at the router, see below, but an always-on
+box is still the right long-term home). A Synology NAS running Container Manager is
+a good fit: it's already on all the time, and this is the same pattern many people
+use to self-host Pi-hole.
+
+**Note:** the Dockerfile/compose setup below has been reviewed carefully but not
+build-tested end to end (the sandbox this was built in blocks Docker Hub pulls) — the
+first real build happens on your NAS. If it fails, send me the error.
+
+1. Copy the whole `web/` folder (containing `Dockerfile`, `docker-compose.yml`,
+   `backend/`, `frontend/`) onto the NAS — e.g. via File Station or an SMB share —
+   into a shared folder such as `docker/snitch`.
+2. Open **Container Manager** → **Project** → **Create**.
+3. Name it (e.g. `snitch`), set the path to the folder from step 1, and choose
+   "Create docker-compose.yml" → point it at the existing `docker-compose.yml`
+   already in that folder (or paste its contents in).
+4. Build and run. Check the container's logs for the two startup lines
+   (`snitch web backend listening...` and `snitch dns server listening...`) to
+   confirm the DNS server actually bound port 53 — if the NAS itself already runs
+   something on port 53 (e.g. Synology's own DNS Server package), you'll see the
+   same `EADDRINUSE` error we hit on Windows, and will need to free that port
+   or install this into a different network context first.
+5. If `network_mode: host` isn't available as an option in your Container
+   Manager UI, fall back to explicit port publishing instead — edit
+   `docker-compose.yml` to remove `network_mode: host` and add:
+   ```yaml
+   ports:
+     - "53:53/udp"
+     - "8788:8788"
+   ```
+6. Once it's running, open `http://<nas-ip>:8788` for the dashboard (it now serves
+   the built frontend directly — no separate frontend process needed in
+   production), and follow the router DNS steps from earlier: set the router's
+   primary DNS to the NAS's IP, secondary to `1.1.1.1`, so the network keeps
+   working even if the NAS or container is ever down.
+
 ## Layout
 
 - `backend/`:

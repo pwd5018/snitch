@@ -1,11 +1,21 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import fs from "node:fs";
 import express from "express";
 import cors from "cors";
 import { listDevices, getDevice, recordQuery } from "./store.js";
 import { CATEGORIES } from "./categories.js";
 import { startDnsServer } from "./dnsServer.js";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const publicDir = path.join(__dirname, "..", "public");
+
 const app = express();
 app.use(cors());
+
+if (fs.existsSync(publicDir)) {
+  app.use(express.static(publicDir));
+}
 
 function summarize(device) {
   const totals = { ad_tracker: 0, analytics: 0, functional: 0, unknown: 0 };
