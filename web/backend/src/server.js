@@ -11,10 +11,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, "..", "public");
 
 const app = express();
-app.use(cors());
 
-if (fs.existsSync(publicDir)) {
+const servingBuiltFrontend = fs.existsSync(publicDir);
+if (servingBuiltFrontend) {
+  // Same origin as the API in this case (production/NAS) -- no CORS needed,
+  // and none of this data should be readable cross-origin from other sites.
   app.use(express.static(publicDir));
+} else {
+  // Dev mode: the Vite dev server (a different origin) needs to reach the API.
+  app.use(cors({ origin: "http://localhost:5174" }));
 }
 
 function summarize(device) {
